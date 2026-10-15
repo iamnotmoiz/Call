@@ -469,7 +469,7 @@ body.demo-on .toast{display:none}
 <input type="file" id="fileInput" accept=".csv,.xlsx,.xlsm,.tsv" class="hidden">
 
 <main>
-  <section class="start" id="startView">
+  <section class="start hidden" id="startView">
     <form class="startcard" id="startForm" novalidate>
       <h1>Load your report</h1>
       <p class="lede">Enter your BDE code and upload the Amazon Business activations export. You will only see the businesses signed up under your code.</p>
@@ -1068,12 +1068,56 @@ function loadView(){
     if(['losing','all','period','next'].includes(v.cbScope)) state.cbScope=v.cbScope;
   }catch(e){}
 }
+/* The report itself is kept in IndexedDB. A full AB report (tens of
+   thousands of rows) is far bigger than the ~5 MB localStorage allows, which
+   is why it used to vanish on refresh. Small settings stay in localStorage.
+   Both live only on this device. */
+const IDB={
+  db:null,
+  open(){
+    if(this.db) return Promise.resolve(this.db);
+    return new Promise((res,rej)=>{
+      let r; try{ r=indexedDB.open('rft_store',1); }catch(e){ return rej(e); }
+      r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv'); };
+      r.onsuccess=()=>{ this.db=r.result; res(this.db); };
+      r.onerror=()=>rej(r.error); r.onblocked=()=>rej(new Error('blocked'));
+    });
+  },
+  async get(k){ const db=await this.open(); return new Promise((res,rej)=>{ const q=db.transaction('kv','readonly').objectStore('kv').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); },
+  async set(k,v){ const db=await this.open(); return new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error||new Error('aborted')); }); },
+  async del(k){ const db=await this.open(); return new Promise(res=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }); }
+};
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+let rowsSaved=null;   // the rows array last written, so settings changes don't rewrite the whole report
+async function saveRows(rows){
+  try{
+    await withTimeout(IDB.set(K_DATA,rows),20000);
+    store.del(K_DATA);            // drop any older copy so localStorage has room for the rest
+    state.quota=false;
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  }catch(e){
+    console.warn('IndexedDB save failed, trying localStorage',e);
+    const res=store.set(K_DATA,JSON.stringify(rows));
+    state.quota=res!==true;
+    if(state.quota){ rowsSaved=null; toast('This browser would not keep the report on the device, so it will need uploading again after a refresh.',true); }
+  }
+  renderFoot();
+}
+async function loadRows(){
+  let rows=null, fromIDB=false;
+  try{ rows=await withTimeout(IDB.get(K_DATA),5000); fromIDB=Array.isArray(rows); }catch(e){ console.warn('IndexedDB read failed',e); }
+  if(!fromIDB){
+    // reports saved by the older version sit in localStorage: move them across
+    const d=store.get(K_DATA);
+    if(d){ try{ rows=JSON.parse(d); }catch(e){ rows=null; } }
+    if(Array.isArray(rows)&&rows.length){ rowsSaved=rows; saveRows(rows); }
+  }else rowsSaved=rows;
+  return Array.isArray(rows)?rows:[];
+}
 function save(){
-  const res=store.set(K_DATA,JSON.stringify(state.all));
   store.set(K_SET,JSON.stringify(state.settings));
   store.set(K_META,JSON.stringify(state.meta));
-  if(res==='quota') toast('This report is too large to keep on the device. It works now but will not survive a refresh.',true);
-  state.quota=(res==='quota');
+  if(state.all!==rowsSaved){ rowsSaved=state.all; saveRows(state.all); }
   renderFoot();
 }
 function load(){
@@ -1081,11 +1125,7 @@ function load(){
     const s=store.get(K_SET);
     if(s){ const saved=JSON.parse(s); delete saved.actBasis; state.settings=Object.assign(defaultSettings(),saved); }
     const m=store.get(K_META); if(m) state.meta=JSON.parse(m);
-    const d=store.get(K_DATA); if(d) state.all=JSON.parse(d)||[];
     state.code=store.get(K_CODE)||'';
-    if(!state.code&&state.all.length) state.code=String(state.all[0][F.AGENT]);
-    const want=codeKey(state.code);
-    state.rows=state.all.filter(r=>codeKey(r[F.AGENT])===want);
     try{ state.called=JSON.parse(store.get(K_CALLED)||'{}')||{}; }catch(e){ state.called={}; }
     loadView();
   }catch(e){ console.warn('Stored data could not be read',e); }
@@ -1463,7 +1503,7 @@ function renderFoot(){
   const parts=[];
   if(state.meta&&state.rows.length) parts.push(fileSummary());
   if(!persistent) parts.push('This browser is blocking local storage, so the report is held for this session only. Everything still stays on this device.');
-  else if(state.quota) parts.push('This report is too large to keep on the device, so it will clear when you close the tab.');
+  else if(state.quota) parts.push('This browser would not keep the report on the device, so it will need uploading again after a refresh.');
   else parts.push('Everything on this page is read and stored on this device. Nothing is sent anywhere.');
   f.textContent=parts.join(' — ');
 }
@@ -1732,6 +1772,7 @@ function openSettings(focus){
         if(!ok) return;
         for(const k of appKeys()){ if(k===K_THEME) continue; try{ localStorage.removeItem(k); }catch(e){} }
         for(const k of Object.keys(mem)) if(k!==K_THEME) delete mem[k];
+        IDB.del(K_DATA).catch(()=>{}); rowsSaved=null;
         state.rows=[]; state.all=[]; state.meta=null; state.code=''; state.pendingFile=null; state.quota=false; state.called={};
         state.settings=defaultSettings(); state.filters=Object.assign({},DEFAULT_FILTERS);
         state.detailShow='cb'; state.cbScope='period';
@@ -2172,10 +2213,6 @@ const Demo=(()=>{
         :`Next to it is what slipped away last pay period. Here, nothing was lost.`,
       act:async()=>{ await moveTo(()=>tile('lost'),{fx:.25,fy:.45}); }},
 
-    {ch:'Your summary', target:()=>[tile('reg'),tile('act'),tile('comm')], pad:2, radius:4,
-      say:()=>`Then this pay period at a glance, from the 25th to the 24th: new registrations, customers who have spent, and how many have qualified for commission.`,
-      act:async()=>{ await moveTo(()=>tile('reg'),{fx:.3}); await wait(900); await moveTo(()=>tile('act'),{fx:.3}); await wait(900); await moveTo(()=>tile('comm'),{fx:.3}); }},
-
     {ch:'What to do next', target:'#nudge > div:first-child', pad:10,
       say:()=>`Underneath is what you can still win this pay period.`,
       act:async()=>{ await moveTo('#nudge h3',{fx:.2}); }},
@@ -2410,12 +2447,18 @@ const Demo=(()=>{
 
 /* boot */
 (function(){ let t=null; try{ t=store.get(K_THEME); }catch(e){} applyTheme(t); })();
-load();
-{ const q=$('#search'); if(q) q.value=state.filters.q||''; }
-render();
-if(state.rows.length&&state.meta){
-  const n=filterCount();
-  toast(`Reloaded ${fmt(state.rows.length)} registrations for BDE ${state.code}`+(n?` · ${n} ${plural(n,'filter')} still applied`:''));
-  notifyMissed();
-}
+(async function boot(){
+  load();
+  state.all=await loadRows();
+  if(!state.code&&state.all.length) state.code=String(state.all[0][F.AGENT]);
+  const want=codeKey(state.code);
+  state.rows=state.all.filter(r=>codeKey(r[F.AGENT])===want);
+  { const q=$('#search'); if(q) q.value=state.filters.q||''; }
+  render();
+  if(state.rows.length&&state.meta){
+    const n=filterCount();
+    toast(`Reloaded ${fmt(state.rows.length)} registrations for BDE ${state.code}`+(n?` · ${n} ${plural(n,'filter')} still applied`:''));
+    notifyMissed();
+  }
+})();
 </script>
