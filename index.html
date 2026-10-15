@@ -1,4 +1,4 @@
-<title>Report Filtering Tool for BDEs</title>
+<title>Call Back List</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -452,7 +452,7 @@ body.demo-on .toast{display:none}
   <div class="topbar-in">
     <div class="brand">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 28 28"><rect width="28" height="28" rx="7"/><path d="M8 19.5V15M14 19.5V9.5M20 19.5v-7"/></svg></span>
-      <span class="brandtext"><b>Report Filtering Tool</b><small id="brandSub">For BDEs &middot; Amazon Business</small></span>
+      <span class="brandtext"><b>Call Back List</b><small id="brandSub">For BDEs &middot; Amazon Business</small></span>
     </div>
     <div class="topbar-actions">
       <button class="btn codechip hidden" id="btnCode" title="Change BDE code"><span>BDE</span><b id="codeLbl"></b></button>
@@ -2194,7 +2194,7 @@ const Demo=(()=>{
   /* ---------- the tour ---------- */
   const STEPS=[
     {ch:'Welcome', scene:{top:true}, target:'.topbar-in', pad:4,
-      say:()=>{ const n=prefs().name; return `Hi team${n?`, it’s ${n.split(' ')[0]}`:''}. Let me show you the Report Filtering Tool. It turns the Amazon Business activations report into one simple page for each BDE: your own sign-ups, who to call back, and the commission still up for grabs.`; },
+      say:()=>{ const n=prefs().name; return `Hi team${n?`, it’s ${n.split(' ')[0]}`:''}. Let me show you the Call Back List. It turns the Amazon Business activations report into one simple page for each BDE: your own sign-ups, who to call back, and the commission still up for grabs.`; },
       act:async()=>{ await wait(600); await moveTo('.brand',{fx:.3}); }},
 
     {ch:'Your summary', scene:{top:true}, target:'#totals', pad:6,
