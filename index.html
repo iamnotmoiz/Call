@@ -143,9 +143,12 @@ table.anim tbody tr{animation:rowIn .35s var(--ease) both;animation-delay:calc(v
 @media (max-width:420px){ .brandtext small{display:none} }
 
 /* ---------- layout ---------- */
-main{max-width:1180px;margin:0 auto;padding-block:0 80px;
-  padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
-@media (max-width:640px){ main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))} }
+/* The business list runs the full width of the window; everything above it
+   keeps the same centred column as the header. */
+main{margin:0 auto;padding-block:0 80px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#dash > :not(#sec-data){max-width:1132px;margin-left:auto;margin-right:auto}
+#sec-data{border-radius:10px}
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:12px;margin-top:22px;overflow:hidden}
 .panel-head{display:flex;align-items:center;gap:12px 14px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--rule-2)}
 .panel-head h2{font-family:var(--serif);font-size:17px;font-weight:600;margin:0;letter-spacing:-.005em}
@@ -266,7 +269,7 @@ tbody tr.lose-amber td{background:color-mix(in srgb,var(--near-bg) 75%,transpare
 tbody tr.lose-amber td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 tbody tr.lose-amber .bizname{color:var(--near-fg);font-weight:600}
 tbody tr.lose-red:hover td,tbody tr.lose-amber:hover td{filter:brightness(.97)}
-.bizname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
+.bizname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:440px}
 .bizid{display:block;color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .muted{color:var(--ink-3)}
 .pill{display:inline-block;padding:2px 8px;border-radius:11px;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;transition:transform .15s var(--ease)}
@@ -502,7 +505,7 @@ body.demo-on .toast{display:none}
       <div class="totals" id="totals"></div>
       <div class="nudge" id="nudge"></div>
     </section>
-    <p id="postWarn" style="margin:8px 2px 0;font-size:12.5px;color:var(--warn)"></p>
+    <p id="postWarn" style="margin-top:8px;margin-bottom:0;padding:0 2px;font-size:12.5px;color:var(--warn)"></p>
 
     <section class="panel" id="sec-data">
       <div class="panel-head">
@@ -1387,7 +1390,6 @@ function renderTotals(rows){
 
   const w=$('#postWarn'), msgs=[];
   const gl=filteredAll().filter(isGlitch).length;
-  if(gl) msgs.push(`${fmt(gl)} ${plural(gl,'row')} named "Your Business Name" ${gl===1?'is a glitch':'are glitches'} in the AB report and ${gl===1?'is':'are'} left out of every figure.`);
   if(t.nopost) msgs.push(`${fmt(t.nopost)} ${plural(t.nopost,'row has','rows have')} no postcode, so ${t.nopost===1?'it is':'they are'} not counted as ${plural(t.nopost,'a registration','registrations')}.`);
   if(t.actNoDate) msgs.push(`${fmt(t.actNoDate)} ${plural(t.actNoDate,'activation has','activations have')} an activation date that cannot be read. Re-saving the report as .xlsx usually keeps the full date.`);
   if(state.meta&&state.meta.dateMixed) msgs.push(`This file mixes day-first and month-first dates. They have been read as ${state.meta.dateOrder==='dmy'?'day/month/year':'month/day/year'}.`);
@@ -1426,27 +1428,27 @@ function renderDetail(rows){
         <button data-k="next" aria-pressed="${state.cbScope==='next'}">Next pay period<span class="ct">${cbNext.length}</span></button>
         <button data-k="all" aria-pressed="${state.cbScope==='all'}">All<span class="ct">${cbAll.length}</span></button>
       </div>
-      <p><b>Worth up to ${money(worth)} · ${fmt(done)} of ${fmt(scoped.length)} contacted.</b> Registered before ${dshort(cutTime())}: 3 months to spend ${money(commMin())}, counted in the ${periodName(cur)} pay period (${periodSpan(cur)}). Registered since: 1 month, paid when that month closes, and worth calling even once qualifying to reach a higher tier. Rows in <span style="color:var(--warn);font-weight:600">red</span> lose their commission within 2 weeks, <span style="color:var(--near-fg);font-weight:600">amber</span> within 3 weeks. Not limited by the month filter.</p>`;
+      <p><b>Worth up to ${money(worth)} · ${fmt(done)} of ${fmt(scoped.length)} contacted.</b> Rows in <span style="color:var(--warn);font-weight:600">red</span> lose their commission within 2 weeks, <span style="color:var(--near-fg);font-weight:600">amber</span> within 3 weeks. Not limited by the month filter.</p>`;
     $('#cbScope').onclick=e=>{
       const b=e.target.closest('button'); if(!b) return;
       state.cbScope=b.dataset.k; state.detailLimit=60; saveView(); renderDetail(filteredAll());
     };
     const list=scoped.filter(x=>match(x.r));
     const shown=list.slice(0,state.detailLimit);
-    let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Postcode</th><th>Registered</th><th>Status</th><th>Deadline</th><th class="r">Worth</th><th>Counts towards</th></tr></thead><tbody>';
+    let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Deadline</th><th>Registered</th><th>Status</th><th class="r">Worth</th><th>Counts towards</th><th>Postcode</th></tr></thead><tbody>';
     shown.forEach(({r,cb},i)=>{
       const pr=periodRange(cb.pays);
       const rc=[urgencyClass(cb),isCalled(r)?'done':''].filter(Boolean).join(' ');
       h+=`<tr data-key="${esc(bizKey(r))}"${rc?` class="${rc}"`:''} ${iv(i)}>
         ${calledCell(r)}
         <td><div class="bizname">${esc(r[F.NAME]||'—')}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
-        <td>${r[F.POST]?esc(r[F.POST]):'<span class="muted">—</span>'}</td>
+        <td>${deadlinePill(cb)}<small class="bizid">${ukDate(cb.close)}</small></td>
         <td class="num">${ukDate(r[F.REGD])}</td>
         <td>${statusCell(cb)}</td>
-        <td>${deadlinePill(cb)}<small class="bizid">${ukDate(cb.close)}</small></td>
         <td class="r num">${cb.upgrade?`+${money(cb.gain)}<small class="bizid">${money(cb.current)} → ${money(cb.worth)}</small>`
           :`${money(cb.worth)}${cb.top>cb.worth?`<small class="bizid">up to ${money(cb.top)}</small>`:''}`}</td>
         <td>${periodName(cb.pays)}${cb.pays===cur?' <span class="pill hit">now</span>':''}<small class="bizid">${cb.isNew?'new rules':'old rules'} · paid ${dshort(pr.pay)}</small></td>
+        <td>${r[F.POST]?esc(r[F.POST]):'<span class="muted">—</span>'}</td>
       </tr>`;
     });
     h+='</tbody>';
@@ -1468,7 +1470,7 @@ function renderDetail(rows){
   else if(mode==='notq') list=list.filter(r=>!isGlitch(r)&&r[F.ACTD]&&!qualifies(r));
   list=list.filter(match).slice().sort((a,b)=>b[F.REGD]-a[F.REGD]);
   const shown=list.slice(0,state.detailLimit);
-  let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Postcode</th><th>Registered</th><th>Activated</th><th class="r">Net OPS</th><th>Commission</th></tr></thead><tbody>';
+  let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Registered</th><th>Activated</th><th class="r">Net OPS</th><th>Commission</th><th>Postcode</th></tr></thead><tbody>';
   shown.forEach((r,i)=>{
     const cm=commissionFor(r), bad=isGlitch(r), cb=cbMap.get(r);
     let comm;
@@ -1483,11 +1485,11 @@ function renderDetail(rows){
     h+=`<tr data-key="${esc(bizKey(r))}"${cls?` class="${cls}"`:''}${bad?' title="Placeholder business name: a glitch in the AB report, left out of every figure"':''} ${iv(i)}>
       ${bad?'<td class="chk"></td>':calledCell(r)}
       <td><div class="bizname">${esc(r[F.NAME]||'—')}${bad?' <span class="pill miss">Glitch · excluded</span>':''}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
-      <td>${r[F.POST]?esc(r[F.POST]):'<span style="color:var(--warn)">missing</span>'}</td>
       <td class="num">${r[F.REGD]?ukDate(r[F.REGD]):'—'}</td>
       <td class="num">${r[F.ACTD]>0?ukDate(r[F.ACTD]):(r[F.ACTD]?'Activated':'<span class="muted">—</span>')}</td>
       <td class="r num">${r[F.OPS]?fmtOps(r[F.OPS]):'<span class="muted">—</span>'}</td>
-      <td>${comm}</td></tr>`;
+      <td>${comm}</td>
+      <td>${r[F.POST]?esc(r[F.POST]):'<span style="color:var(--warn)">missing</span>'}</td></tr>`;
   });
   h+='</tbody>';
   table.innerHTML=h;
@@ -2242,9 +2244,9 @@ const Demo=(()=>{
       say:f=>`Rows in red lose their commission within two weeks, and amber within three.${f.red?` There ${f.red===1?'is':'are'} ${nb(f.red,'business','businesses')} in red right now, so ${f.red===1?'that’s the call':'those are the calls'} to make first.`:''}`,
       act:async()=>{ await moveTo(()=>firstRows(1)[0]&&firstRows(1)[0].querySelector('.bizname'),{fx:.3}); await wait(1200); await moveTo(()=>firstRows(1)[0]&&firstRows(1)[0].querySelector('.pill.miss, .pill.near, .pill'),{}); }},
 
-    {ch:'Call backs', keep:true, target:()=>{ const r=firstRows(1)[0]; return r?[...r.children].slice(4,7):[]; }, optional:true, pad:4, radius:6,
+    {ch:'Call backs', keep:true, target:()=>{ const r=firstRows(1)[0]; return r?[...r.children].slice(2,6):[]; }, optional:true, pad:4, radius:6,
       say:()=>`Each row tells me whether the business has spent yet, how much more it needs to qualify, the deadline, and what it’s worth to me.`,
-      act:async()=>{ const c=()=>firstRows(1)[0]; await moveTo(()=>c()&&c().children[4],{fx:.3}); await wait(1500); await moveTo(()=>c()&&c().children[5],{fx:.3}); await wait(1200); await moveTo(()=>c()&&c().children[6],{fx:.7}); }},
+      act:async()=>{ const c=()=>firstRows(1)[0]; await moveTo(()=>c()&&c().children[4],{fx:.3}); await wait(1500); await moveTo(()=>c()&&c().children[2],{fx:.3}); await wait(1200); await moveTo(()=>c()&&c().children[5],{fx:.7}); }},
 
     {ch:'Call backs', keep:true, target:()=>{ const r=firstRows(1)[0]; return r&&r.querySelector('td.chk'); }, optional:true, pad:6, radius:8,
       say:()=>`When I’ve spoken to them, I tick Called. The row fades, so I can see at a glance who’s left. Ticks are saved on this device and stay when a new report is uploaded.`,
