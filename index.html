@@ -1314,23 +1314,17 @@ function renderTotals(rows){
   let head, body='';
   if(thisP.length){
     head=`${fmt(thisP.length)} ${plural(thisP.length,'business','businesses')} could still earn you <b>${money(gainOf(thisP))}</b> commission this pay period`;
-    const unspent=thisP.filter(x=>!x.cb.spent).length, low=thisP.length-unspent;
-    body+=`<p>${unspent?`<b>${fmt(unspent)}</b> ${plural(unspent,'has','have')} signed up but not spent yet`:''}${unspent&&low?', and ':''}${low?`<b>${fmt(low)}</b> spent but not enough to qualify`:''}. Each has 3 months from registration to spend ${money(commMin())}, so a call to help them place a first order still counts towards ${periodName(cur)}.</p>`;
   }else if(later.length){
     head=`Your call backs for this pay period are done`;
   }else{
     head='Nothing to chase right now';
     body='<p>Every business still inside its commission window is on the top tier or has qualified. New sign-ups will appear here as they come in.</p>';
   }
-  if(later.length){
-    const up=later.filter(x=>x.cb.upgrade).length, notYet=later.length-up;
-    body+=`<p><b>${fmt(later.length)}</b> ${plural(later.length,'business','businesses')} registered since ${dshort(cutTime())} could add <b>${money(gainOf(later))}</b> to ${nextP.length===later.length?`your ${periodName(nxt)} commission`:'later pay periods'}: `+
-      `${notYet?`${fmt(notYet)} still to qualify`:''}${notYet&&up?' and ':''}${up?`${fmt(up)} already qualifying that can reach a higher tier`:''}. They have 1 month from registration.</p>`;
-  }
   // "Earned so far this pay period" is hidden for now. Set SHOW_EARNED to true to bring it back.
   const earned=SHOW_EARNED?`<div class="earned"><span class="big" data-earned></span><span>earned so far this pay period (${periodSpan(ps.cur)}) from ${fmt(ps.n)} ${plural(ps.n,'business','businesses')}${ps.pn?`, plus ${money(ps.pamt)} on track from ${fmt(ps.pn)} new-rule ${plural(ps.pn,'business','businesses')} still in their first month`:''}</span></div>`:'';
-  const pctDone=all.length?Math.round(called/all.length*100):0;
-  const prog=all.length?`<div class="progwrap"><div class="proglab"><span>Contacted</span><b>${fmt(called)} of ${fmt(all.length)}</b></div><div class="prog"><i style="width:${progMemo}%"></i></div></div>`:'';
+  /* Critical accounts: the businesses losing their commission this month. */
+  const pctDone=losing.length?Math.round(losingCalled/losing.length*100):0;
+  const prog=losing.length?`<div class="progwrap"><div class="proglab"><span>Critical accounts contacted</span><b>${fmt(losingCalled)} of ${fmt(losing.length)}</b></div><div class="prog"><i style="width:${progMemo}%"></i></div></div>`:'';
 
   const pick=[...thisP,...later].filter(x=>!isCalled(x.r)).slice(0,3);
   const tick='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -2183,11 +2177,11 @@ const Demo=(()=>{
       act:async()=>{ await moveTo(()=>tile('reg'),{fx:.3}); await wait(900); await moveTo(()=>tile('act'),{fx:.3}); await wait(900); await moveTo(()=>tile('comm'),{fx:.3}); }},
 
     {ch:'What to do next', target:'#nudge > div:first-child', pad:10,
-      say:()=>`Underneath is a plain-English summary of what you can still win this pay period, and what the newer sign-ups can add next month.`,
+      say:()=>`Underneath is what you can still win this pay period.`,
       act:async()=>{ await moveTo('#nudge h3',{fx:.2}); }},
 
     {ch:'What to do next', target:'.progwrap', optional:true, pad:10,
-      say:()=>`This bar fills up as you tick off the businesses you’ve contacted, so you can see how far through the list you are.`,
+      say:()=>`This bar tracks your critical accounts, the businesses losing their commission this month. It fills up as you tick them off as contacted, so you can see how many are left.`,
       act:async()=>{ await moveTo('.prog',{fx:.1}); await wait(500); await moveTo('.prog',{fx:.9}); }},
 
     {ch:'What to do next', target:'.shortlist', optional:true, pad:8,
