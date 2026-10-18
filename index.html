@@ -270,6 +270,21 @@ tbody tr.lose-amber td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 tbody tr.lose-amber .bizname{color:var(--near-fg);font-weight:600}
 tbody tr.lose-red:hover td,tbody tr.lose-amber:hover td{filter:brightness(.97)}
 .bizname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:440px}
+/* Business column: fixed to --bizw, set from the business ID width or by dragging */
+#detailTable th.bizcol{width:var(--bizw,170px);min-width:var(--bizw,170px);max-width:var(--bizw,170px)}
+#detailTable td.bizcell{width:var(--bizw,170px);max-width:var(--bizw,170px)}
+#detailTable td.bizcell .bizname,#detailTable td.bizcell .bizid{max-width:calc(var(--bizw,170px) - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.colgrip{position:absolute;top:0;right:-5px;width:11px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
+.colgrip::after{content:"";position:absolute;left:4px;top:22%;bottom:22%;width:3px;border-radius:2px;background:var(--rule);transition:background .15s var(--ease)}
+th:hover .colgrip::after,.colgrip.drag::after{background:var(--reg)}
+body.resizing,body.resizing *{cursor:col-resize!important;user-select:none!important}
+/* sortable headings */
+thead th.sortable{cursor:pointer;user-select:none;transition:color .15s var(--ease),background .15s var(--ease)}
+thead th.sortable:hover{color:var(--ink);background:color-mix(in srgb,var(--reg) 6%,var(--surface-2))}
+thead th.sorted{color:var(--reg)}
+.sarr{display:inline-block;margin-left:5px;font-size:9px;opacity:.3;transition:opacity .15s var(--ease);vertical-align:1px}
+th.sortable:hover .sarr{opacity:.75}
+th.sorted .sarr{opacity:1}
 .bizid{display:block;color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .muted{color:var(--ink-3)}
 .pill{display:inline-block;padding:2px 8px;border-radius:11px;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;transition:transform .15s var(--ease)}
@@ -582,6 +597,7 @@ const state={
   settings:defaultSettings(),
   filters:Object.assign({},DEFAULT_FILTERS),
   detailShow:'cb', cbScope:'period', detailLimit:60,
+  sort:{cb:null,all:null}, bizW:null,
   _base:[], _start:0, _animRows:true, _entered:false
 };
 
@@ -1060,7 +1076,7 @@ function notifyMissed(){
    ======================================================================= */
 function saveView(){
   const f=state.filters;
-  store.set(K_VIEW,JSON.stringify({mFrom:f.mFrom,mTo:f.mTo,q:f.q,detailShow:state.detailShow,cbScope:state.cbScope}));
+  store.set(K_VIEW,JSON.stringify({mFrom:f.mFrom,mTo:f.mTo,q:f.q,detailShow:state.detailShow,cbScope:state.cbScope,sort:state.sort,bizW:state.bizW}));
   paintFilterState();
 }
 function loadView(){
@@ -1069,6 +1085,10 @@ function loadView(){
     state.filters={mFrom:Number.isFinite(v.mFrom)?v.mFrom:null,mTo:Number.isFinite(v.mTo)?v.mTo:null,q:v.q||''};
     if(['all','act','qual','notq','cb'].includes(v.detailShow)) state.detailShow=v.detailShow;
     if(['losing','all','period','next'].includes(v.cbScope)) state.cbScope=v.cbScope;
+    if(v.sort&&typeof v.sort==='object'){
+      for(const k of ['cb','all']){ const s=v.sort[k]; if(s&&SORTS[k].get[s.key]&&(s.dir===1||s.dir===-1)) state.sort[k]={key:s.key,dir:s.dir}; }
+    }
+    if(Number.isFinite(v.bizW)) state.bizW=Math.max(110,Math.min(700,v.bizW));
   }catch(e){}
 }
 /* The report itself is kept in IndexedDB. A full AB report (tens of
@@ -1256,6 +1276,76 @@ function monthHint(){
 
 /* ---------- small pieces ---------- */
 const SHOW_EARNED=false;
+
+/* ---------- sortable columns ----------
+   Click a heading to sort ascending, click it again for descending.
+   Ties keep their existing order, so the default order still breaks them. */
+const SORTS={
+  cb:{def:{key:'deadline',dir:1}, get:{
+    called:x=>isCalled(x.r)?1:0,
+    name:x=>String(x.r[F.NAME]||''),
+    deadline:x=>x.cb.close,
+    status:x=>[x.cb.upgrade?2:x.cb.spent?1:0, x.cb.need],
+    reg:x=>x.r[F.REGD],
+    worth:x=>x.cb.gain,
+    pays:x=>[x.cb.pays, x.cb.close],
+    post:x=>String(x.r[F.POST]||'')
+  }},
+  all:{def:{key:'reg',dir:-1}, get:{
+    called:r=>isCalled(r)?1:0,
+    name:r=>String(r[F.NAME]||''),
+    reg:r=>r[F.REGD],
+    act:r=>r[F.ACTD]>0?r[F.ACTD]:(r[F.ACTD]?1:0),
+    ops:r=>r[F.OPS]||0,
+    comm:r=>{ const c=commissionFor(r); return c.ok?c.amt:(r[F.ACTD]?-1:-2); },
+    post:r=>String(r[F.POST]||'')
+  }}
+};
+const sortOf=kind=>state.sort[kind]||SORTS[kind].def;
+function cmpVals(a,b){
+  if(Array.isArray(a)){ for(let i=0;i<a.length;i++){ const c=cmpVals(a[i],b[i]); if(c) return c; } return 0; }
+  if(typeof a==='string') return a.localeCompare(b,'en-GB',{numeric:true,sensitivity:'base'});
+  return (a>b)-(a<b);
+}
+function sortList(list,kind){
+  const s=sortOf(kind), get=SORTS[kind].get[s.key];
+  if(!get) return list.slice();
+  return list.map((x,i)=>[x,get(x),i]).sort((p,q)=>cmpVals(p[1],q[1])*s.dir||p[2]-q[2]).map(p=>p[0]);
+}
+function sortTh(kind,key,label,cls){
+  const s=sortOf(kind), on=s.key===key;
+  const arrow=on?(s.dir>0?'▲':'▼'):'↕';
+  const grip=cls&&cls.includes('bizcol')?'<span class="colgrip" title="Drag to resize. Double-click to reset." aria-hidden="true"></span>':'';
+  return `<th class="sortable${cls?' '+cls:''}${on?' sorted':''}" data-sort="${key}" data-kind="${kind}" tabindex="0"
+    aria-sort="${on?(s.dir>0?'ascending':'descending'):'none'}" title="Sort by ${label.toLowerCase()}${on?(s.dir>0?' (A–Z, low to high)':' (Z–A, high to low)'):''}">${label}<span class="sarr" aria-hidden="true">${arrow}</span>${grip}</th>`;
+}
+function setSort(kind,key){
+  const s=sortOf(kind);
+  // a new column starts ascending; the same column flips direction
+  state.sort[kind]={key, dir:s.key===key?-s.dir:1};
+  state.detailLimit=60; state._animRows=false;
+  saveView(); renderDetail(filteredAll());
+}
+
+/* ---------- Business column width ----------
+   Defaults to the width of a business ID plus a little room; drag the edge
+   of the heading to change it. Long names are cut off with "…" and shown in
+   full on hover. */
+let bizDefault=null, bizDefaultFor=null;
+function defaultBizW(){
+  if(bizDefault&&bizDefaultFor===state.code) return bizDefault;
+  let ids=state.rows.slice(0,400).map(r=>String(r[F.GID]||'')).filter(Boolean);
+  let w=150;
+  if(ids.length){
+    const c=document.createElement('canvas').getContext('2d');
+    c.font=`11px ${getComputedStyle(document.body).fontFamily}`;
+    const longest=Math.max(...ids.map(t=>c.measureText(t).width));
+    w=Math.round(longest+24+44);    // cell padding + white space
+  }
+  bizDefault=Math.max(130,Math.min(340,w)); bizDefaultFor=state.code;
+  return bizDefault;
+}
+function applyBizW(){ $('#detailTable').style.setProperty('--bizw',(state.bizW||defaultBizW())+'px'); }
 /* End of a pay period: the 24th, end of day. */
 function periodEndTime(k){ const e=periodRange(k).end; return new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59,999).getTime(); }
 /* Losing this month: businesses not yet qualifying whose deadline falls on or
@@ -1412,6 +1502,7 @@ function renderDetail(rows){
   [...$('#detailShow').children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===mode)));
   const table=$('#detailTable');
   table.classList.toggle('anim',anim);
+  applyBizW();
   const iv=i=>`style="--i:${Math.min(i,14)}"`;
 
   const bar=$('#cbBar');
@@ -1433,18 +1524,18 @@ function renderDetail(rows){
       const b=e.target.closest('button'); if(!b) return;
       state.cbScope=b.dataset.k; state.detailLimit=60; saveView(); renderDetail(filteredAll());
     };
-    const list=scoped.filter(x=>match(x.r));
+    const list=sortList(scoped.filter(x=>match(x.r)),'cb');
     const shown=list.slice(0,state.detailLimit);
-    let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Deadline</th><th>Registered</th><th>Status</th><th class="r">Worth</th><th>Counts towards</th><th>Postcode</th></tr></thead><tbody>';
+    let h=`<thead><tr>${sortTh('cb','called','Called','chk')}${sortTh('cb','name','Business','bizcol')}${sortTh('cb','deadline','Deadline')}${sortTh('cb','status','Status')}${sortTh('cb','reg','Registered')}${sortTh('cb','worth','Worth','r')}${sortTh('cb','pays','Counts towards')}${sortTh('cb','post','Postcode')}</tr></thead><tbody>`;
     shown.forEach(({r,cb},i)=>{
       const pr=periodRange(cb.pays);
       const rc=[urgencyClass(cb),isCalled(r)?'done':''].filter(Boolean).join(' ');
       h+=`<tr data-key="${esc(bizKey(r))}"${rc?` class="${rc}"`:''} ${iv(i)}>
         ${calledCell(r)}
-        <td><div class="bizname">${esc(r[F.NAME]||'—')}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
+        <td class="bizcell"><div class="bizname" title="${esc(r[F.NAME]||'')}">${esc(r[F.NAME]||'—')}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
         <td>${deadlinePill(cb)}<small class="bizid">${ukDate(cb.close)}</small></td>
-        <td class="num">${ukDate(r[F.REGD])}</td>
         <td>${statusCell(cb)}</td>
+        <td class="num">${ukDate(r[F.REGD])}</td>
         <td class="r num">${cb.upgrade?`+${money(cb.gain)}<small class="bizid">${money(cb.current)} → ${money(cb.worth)}</small>`
           :`${money(cb.worth)}${cb.top>cb.worth?`<small class="bizid">up to ${money(cb.top)}</small>`:''}`}</td>
         <td>${periodName(cb.pays)}${cb.pays===cur?' <span class="pill hit">now</span>':''}<small class="bizid">${cb.isNew?'new rules':'old rules'} · paid ${dshort(pr.pay)}</small></td>
@@ -1468,9 +1559,9 @@ function renderDetail(rows){
   if(mode==='act') list=list.filter(r=>r[F.ACTD]);
   else if(mode==='qual') list=list.filter(r=>!isGlitch(r)&&qualifies(r));
   else if(mode==='notq') list=list.filter(r=>!isGlitch(r)&&r[F.ACTD]&&!qualifies(r));
-  list=list.filter(match).slice().sort((a,b)=>b[F.REGD]-a[F.REGD]);
+  list=sortList(list.filter(match),'all');
   const shown=list.slice(0,state.detailLimit);
-  let h='<thead><tr><th class="chk" title="Tick once you have contacted the business">Called</th><th>Business</th><th>Registered</th><th>Activated</th><th class="r">Net OPS</th><th>Commission</th><th>Postcode</th></tr></thead><tbody>';
+  let h=`<thead><tr>${sortTh('all','called','Called','chk')}${sortTh('all','name','Business','bizcol')}${sortTh('all','reg','Registered')}${sortTh('all','act','Activated')}${sortTh('all','ops','Net OPS','r')}${sortTh('all','comm','Commission')}${sortTh('all','post','Postcode')}</tr></thead><tbody>`;
   shown.forEach((r,i)=>{
     const cm=commissionFor(r), bad=isGlitch(r), cb=cbMap.get(r);
     let comm;
@@ -1484,7 +1575,7 @@ function renderDetail(rows){
     const cls=[bad?'glitch':'',!bad&&isCalled(r)?'done':''].filter(Boolean).join(' ');
     h+=`<tr data-key="${esc(bizKey(r))}"${cls?` class="${cls}"`:''}${bad?' title="Placeholder business name: a glitch in the AB report, left out of every figure"':''} ${iv(i)}>
       ${bad?'<td class="chk"></td>':calledCell(r)}
-      <td><div class="bizname">${esc(r[F.NAME]||'—')}${bad?' <span class="pill miss">Glitch · excluded</span>':''}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
+      <td class="bizcell"><div class="bizname" title="${esc(r[F.NAME]||'')}">${esc(r[F.NAME]||'—')}${bad?' <span class="pill miss">Glitch · excluded</span>':''}</div>${r[F.GID]?`<small class="bizid">${esc(r[F.GID])}</small>`:''}</td>
       <td class="num">${r[F.REGD]?ukDate(r[F.REGD]):'—'}</td>
       <td class="num">${r[F.ACTD]>0?ukDate(r[F.ACTD]):(r[F.ACTD]?'Activated':'<span class="muted">—</span>')}</td>
       <td class="r num">${r[F.OPS]?fmtOps(r[F.OPS]):'<span class="muted">—</span>'}</td>
@@ -1777,7 +1868,7 @@ function openSettings(focus){
         IDB.del(K_DATA).catch(()=>{}); rowsSaved=null;
         state.rows=[]; state.all=[]; state.meta=null; state.code=''; state.pendingFile=null; state.quota=false; state.called={};
         state.settings=defaultSettings(); state.filters=Object.assign({},DEFAULT_FILTERS);
-        state.detailShow='cb'; state.cbScope='period';
+        state.detailShow='cb'; state.cbScope='period'; state.sort={cb:null,all:null}; state.bizW=null;
         const ci=$('#codeInput'); if(ci) ci.value='';
         $('#search').value='';
         close(); render(); toast('All data reset');
@@ -1862,6 +1953,33 @@ $('#nudge').addEventListener('click',e=>{
   if(m){ setCalled(m.dataset.mark,true); toast('Marked as contacted'); refreshAfterCall(); return; }
   const j=e.target.closest('[data-jump]');
   if(j) jumpTo(j.dataset.jump);
+});
+/* Sorting: click (or Enter) on a heading. The resize grip never sorts. */
+$('#detailTable').addEventListener('click',e=>{
+  if(e.target.closest('.colgrip')) return;
+  const th=e.target.closest('th[data-sort]'); if(!th) return;
+  setSort(th.dataset.kind,th.dataset.sort);
+});
+$('#detailTable').addEventListener('keydown',e=>{
+  const th=e.target.closest('th[data-sort]'); if(!th||(e.key!=='Enter'&&e.key!==' ')) return;
+  e.preventDefault(); setSort(th.dataset.kind,th.dataset.sort);
+  const again=document.querySelector(`#detailTable th[data-sort="${th.dataset.sort}"]`); if(again) again.focus();
+});
+/* Resizing the Business column by dragging the edge of its heading. */
+$('#detailTable').addEventListener('pointerdown',e=>{
+  const g=e.target.closest('.colgrip'); if(!g||e.button!==0) return;
+  e.preventDefault(); e.stopPropagation();
+  const th=g.closest('th'), tbl=$('#detailTable'), x0=e.clientX, w0=th.getBoundingClientRect().width;
+  g.classList.add('drag'); document.body.classList.add('resizing');
+  try{ g.setPointerCapture(e.pointerId); }catch(err){}
+  const mv=ev=>{ state.bizW=Math.max(110,Math.min(700,Math.round(w0+ev.clientX-x0))); tbl.style.setProperty('--bizw',state.bizW+'px'); };
+  const up=()=>{ g.classList.remove('drag'); document.body.classList.remove('resizing');
+    g.removeEventListener('pointermove',mv); g.removeEventListener('pointerup',up); g.removeEventListener('pointercancel',up); saveView(); };
+  g.addEventListener('pointermove',mv); g.addEventListener('pointerup',up); g.addEventListener('pointercancel',up);
+});
+$('#detailTable').addEventListener('dblclick',e=>{
+  if(!e.target.closest('.colgrip')) return;
+  state.bizW=null; applyBizW(); saveView();
 });
 $('#detailTable').addEventListener('change',e=>{
   const box=e.target.closest('input[data-called]'); if(!box) return;
@@ -2167,6 +2285,7 @@ const Demo=(()=>{
     if(s.top){ window.scrollTo({top:0,behavior:reduce()?'auto':'smooth'}); await wait(450); }
     if(s.tab){
       state.detailShow=s.tab; if(s.scope) state.cbScope=s.scope;
+      state.sort={cb:null,all:null};   // the tour always shows the default order
       state.filters.q=''; $('#search').value=''; state.detailLimit=60; state._animRows=false;
       renderDetail(filteredAll());
     }
@@ -2246,7 +2365,7 @@ const Demo=(()=>{
 
     {ch:'Call backs', keep:true, target:()=>{ const r=firstRows(1)[0]; return r?[...r.children].slice(2,6):[]; }, optional:true, pad:4, radius:6,
       say:()=>`Each row tells me whether the business has spent yet, how much more it needs to qualify, the deadline, and what it’s worth to me.`,
-      act:async()=>{ const c=()=>firstRows(1)[0]; await moveTo(()=>c()&&c().children[4],{fx:.3}); await wait(1500); await moveTo(()=>c()&&c().children[2],{fx:.3}); await wait(1200); await moveTo(()=>c()&&c().children[5],{fx:.7}); }},
+      act:async()=>{ const c=()=>firstRows(1)[0]; await moveTo(()=>c()&&c().children[3],{fx:.3}); await wait(1500); await moveTo(()=>c()&&c().children[2],{fx:.3}); await wait(1200); await moveTo(()=>c()&&c().children[5],{fx:.7}); }},
 
     {ch:'Call backs', keep:true, target:()=>{ const r=firstRows(1)[0]; return r&&r.querySelector('td.chk'); }, optional:true, pad:6, radius:8,
       say:()=>`When I’ve spoken to them, I tick Called. The row fades, so I can see at a glance who’s left. Ticks are saved on this device and stay when a new report is uploaded.`,
@@ -2408,7 +2527,7 @@ const Demo=(()=>{
     if(on) return;
     if(!state.rows.length){ toast('Load your report first, then play the demo.',true); return; }
     // remember everything the tour will touch
-    snap={detailShow:state.detailShow,cbScope:state.cbScope,filters:{...state.filters},detailLimit:state.detailLimit,
+    snap={detailShow:state.detailShow,cbScope:state.cbScope,filters:{...state.filters},detailLimit:state.detailLimit,sort:{...state.sort},
       scrollY:window.scrollY,codeVal:$('#codeInput').value,search:$('#search').value};
     on=true; idx=0; jump=null; paused=false; voiceBroken=false; dockManual=false; spotRect=null; curFollow=null;
     document.body.classList.add('demo-on');
@@ -2434,7 +2553,7 @@ const Demo=(()=>{
     // put the page back exactly as it was
     const s=snap; snap=null;
     if(s){
-      state.detailShow=s.detailShow; state.cbScope=s.cbScope; state.filters={...s.filters}; state.detailLimit=s.detailLimit;
+      state.detailShow=s.detailShow; state.cbScope=s.cbScope; state.filters={...s.filters}; state.detailLimit=s.detailLimit; state.sort={...s.sort};
       $('#search').value=s.search; $('#codeInput').value=s.codeVal;
     }
     document.body.classList.remove('demo-on');
