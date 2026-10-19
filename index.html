@@ -23,6 +23,7 @@
   --cb-bg:#E8EEF7; --cb-fg:#2F4E7C;
   --danger-bd:#E4C7C7; --danger-bg:#FBF0F0; --danger-hi:#8E2A2A;
   --nudge-bg:#F1F6F1; --drag-bg:#F1F6F1; --flash:#FFF3C9;
+  --logo-a:#2B7864; --logo-b:#16443A; --logo-ink:#FFFFFF; --logo-rim:rgba(255,255,255,.12); --logo-shade:rgba(6,26,20,.28); --logo-glow:rgba(32,87,74,.35);
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --ground:#111613; --surface:#191F1C; --surface-2:#212925;
@@ -40,6 +41,7 @@
   --cb-bg:#1F2A3B; --cb-fg:#9DBDEB;
   --danger-bd:#5A3636; --danger-bg:#2E1E1E; --danger-hi:#C96A6A;
   --nudge-bg:#1C2A24; --drag-bg:#1C2A24; --flash:#4A4020;
+  --logo-a:#3B977E; --logo-b:#1C5245; --logo-glow:rgba(79,178,149,.3);
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
@@ -58,6 +60,7 @@
   --cb-bg:#1F2A3B; --cb-fg:#9DBDEB;
   --danger-bd:#5A3636; --danger-bg:#2E1E1E; --danger-hi:#C96A6A;
   --nudge-bg:#1C2A24; --drag-bg:#1C2A24; --flash:#4A4020;
+  --logo-a:#3B977E; --logo-b:#1C5245; --logo-glow:rgba(79,178,149,.3);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -95,17 +98,19 @@ table.anim tbody tr{animation:rowIn .35s var(--ease) both;animation-delay:calc(v
   padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));
   display:flex;align-items:center;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0;margin-right:auto}
-.logo{flex:none;width:30px;height:30px;transition:transform .3s var(--ease)}
-.brand:hover .logo{transform:rotate(-8deg) scale(1.06)}
-.logo svg{width:30px;height:30px;display:block}
-.logo rect{fill:var(--reg)}
-/* Logo: a phone handset with a curved "call back" arrow, and an amber dot for a call waiting */
-.logo path{stroke:var(--on-accent);stroke-linecap:round;stroke-linejoin:round;fill:none}
-.logo .lg-phone{stroke-width:2.1;fill:color-mix(in srgb,var(--on-accent) 16%,transparent)}
-.logo .lg-back{stroke-width:2.2}
-.logo .lg-dot{fill:var(--amber);stroke:var(--reg);stroke-width:1.6;transform-box:fill-box;transform-origin:center}
-.brand:hover .logo .lg-dot{animation:lgPing 1s var(--ease) 2}
-@keyframes lgPing{50%{transform:scale(1.35)}}
+/* Logo: a single white handset on a green tile, with a soft top light and shadow.
+   On hover the handset gives a short ring. */
+.logo{flex:none;width:30px;height:30px;transition:transform .3s var(--ease),filter .3s var(--ease)}
+.logo svg{width:30px;height:30px;display:block;overflow:visible}
+.brand:hover .logo{transform:translateY(-1px);filter:drop-shadow(0 3px 6px var(--logo-glow))}
+.lg-a{stop-color:var(--logo-a)} .lg-b{stop-color:var(--logo-b)}
+.lg-sheen-top{stop-color:var(--logo-ink);stop-opacity:.16} .lg-sheen-end{stop-color:var(--logo-ink);stop-opacity:0}
+.lg-rim{fill:none;stroke:var(--logo-rim);stroke-width:.8}
+.lg-glyph{fill:var(--logo-ink)}
+.lg-shadow{fill:var(--logo-shade)}
+.lg-ring{transform-box:fill-box;transform-origin:50% 50%}
+.brand:hover .lg-ring{animation:lgRing .9s var(--ease) 1}
+@keyframes lgRing{0%,100%{transform:rotate(0)}15%{transform:rotate(-14deg)}30%{transform:rotate(11deg)}45%{transform:rotate(-8deg)}60%{transform:rotate(5deg)}75%{transform:rotate(-2deg)}}
 .brandtext{display:flex;flex-direction:column;min-width:0;line-height:1.2}
 .brandtext b{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brandtext small{font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -475,12 +480,19 @@ body.demo-on .toast{display:none}
 <div class="topbar">
   <div class="topbar-in">
     <div class="brand">
-      <span class="logo" aria-hidden="true"><svg viewBox="0 0 28 28"><rect width="28" height="28" rx="7"/>
-        <g transform="translate(4.4 5.2) scale(.8)">
-          <path class="lg-phone" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>
-          <path class="lg-back" d="M21 3.5h-4.2a2.8 2.8 0 0 0 0 5.6H18.5M18.6 1.4 16.6 3.5l2 2.1"/>
-        </g>
-        <circle class="lg-dot" cx="22.6" cy="22.4" r="3.1"/></svg></span>
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 28 28">
+        <defs>
+          <linearGradient id="lgFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="lg-a"/><stop offset="1" class="lg-b"/></linearGradient>
+          <linearGradient id="lgSheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="lg-sheen-top"/><stop offset=".5" class="lg-sheen-end"/></linearGradient>
+          <path id="lgHandset" d="M3 6A2.8 2.8 0 0 1 8.6 6A9.4 9.4 0 0 0 9.06 8.9C10 11.8 6.81 9.41 8.42 11.99A11.3 11.3 0 0 0 12.01 15.58C14.59 17.19 12.2 14 15.1 14.94A9.4 9.4 0 0 0 18 15.4A2.8 2.8 0 0 1 18 21A15 15 0 0 1 3 6Z"/>
+        </defs>
+        <rect width="28" height="28" rx="8" fill="url(#lgFill)"/>
+        <rect width="28" height="28" rx="8" fill="url(#lgSheen)"/>
+        <rect class="lg-rim" x=".4" y=".4" width="27.2" height="27.2" rx="7.6"/>
+        <g transform="translate(4.75 4.05) scale(.8)"><g class="lg-ring">
+          <use href="#lgHandset" class="lg-shadow" transform="translate(0 .7)"/>
+          <use href="#lgHandset" class="lg-glyph"/>
+        </g></g></svg></span>
       <span class="brandtext"><b>Call Back List</b><small id="brandSub">For BDEs &middot; Amazon Business</small></span>
     </div>
     <div class="topbar-actions">
