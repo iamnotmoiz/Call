@@ -210,9 +210,9 @@ input[type=search]{min-width:0;width:220px;max-width:100%}
 .codechips button span{opacity:.6;margin-left:4px}
 
 /* ---------- summary tiles ---------- */
-.totals{display:grid;gap:1px;background:var(--rule-2);grid-template-columns:repeat(5,minmax(0,1fr))}
+.totals{display:grid;gap:1px;background:var(--rule-2);grid-template-columns:repeat(6,minmax(0,1fr))}
 @media(max-width:1060px){ .totals{grid-template-columns:repeat(3,minmax(0,1fr))} }
-@media(max-width:640px){ .totals{grid-template-columns:1fr 1fr} .tot:last-child{grid-column:1/-1} }
+@media(max-width:640px){ .totals{grid-template-columns:1fr 1fr} }
 .tot{background:var(--surface);padding:18px 20px;border:none;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;justify-content:flex-start;width:100%;position:relative;
   transition:background .18s var(--ease)}
 .tot:hover{background:var(--surface-2)}
@@ -316,6 +316,10 @@ tbody tr:hover .pill{transform:scale(1.04)}
 .seg button.cbtab{color:var(--warn);font-weight:600}
 .seg button.cbtab:hover{background:var(--miss-bg)}
 .seg button.cbtab[aria-pressed=true]{background:var(--warn);color:var(--on-danger)}
+.seg button.nexttab{color:var(--near-fg);font-weight:600}
+.seg button.nexttab:hover{background:var(--near-bg)}
+.seg button.nexttab[aria-pressed=true]{background:var(--near-fg);color:var(--surface)}
+.seg button.nexttab .ct{background:color-mix(in srgb,currentColor 18%,transparent);border-radius:8px;padding:0 6px;opacity:1}
 .seg button.cbtab .ct{background:color-mix(in srgb,currentColor 18%,transparent);border-radius:8px;padding:0 6px;opacity:1}
 .cbbar{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--rule-2);background:var(--surface-2);font-size:12.5px;color:var(--ink-2)}
 .cbbar p{margin:0;max-width:80ch;min-width:0;flex:1 1 300px}
@@ -1107,7 +1111,7 @@ function loadView(){
     const v=JSON.parse(store.get(K_VIEW)||'null'); if(!v) return;
     state.filters={mFrom:Number.isFinite(v.mFrom)?v.mFrom:null,mTo:Number.isFinite(v.mTo)?v.mTo:null,q:v.q||''};
     if(['all','act','qual','notq','cb'].includes(v.detailShow)) state.detailShow=v.detailShow;
-    if(['losing','all','period','next'].includes(v.cbScope)) state.cbScope=v.cbScope;
+    if(['losing','losingNext','all','period','next'].includes(v.cbScope)) state.cbScope=v.cbScope;
     if(v.sort&&typeof v.sort==='object'){
       for(const k of ['cb','all']){ const s=v.sort[k]; if(s&&SORTS[k].get[s.key]&&(s.dir===1||s.dir===-1)) state.sort[k]={key:s.key,dir:s.dir}; }
     }
@@ -1378,6 +1382,12 @@ function losingList(all,now){
   const end=periodEndTime(periodOf(now));
   return all.filter(x=>!x.cb.upgrade&&x.cb.close<=end);
 }
+/* Will be lost next month: same, but the deadline falls in the next pay period
+   (25th of this month to 24th of next). */
+function losingNextList(all,now){
+  const cur=periodOf(now), end=periodEndTime(cur), nextEnd=periodEndTime(nextPeriod(cur));
+  return all.filter(x=>!x.cb.upgrade&&x.cb.close>end&&x.cb.close<=nextEnd);
+}
 /* Row highlight for a business that would lose its commission entirely. */
 function urgencyClass(cb){
   if(cb.upgrade) return '';
@@ -1438,6 +1448,10 @@ function renderTotals(rows){
   const curEnd=periodEndTime(cur);
   const losingAmt=losing.reduce((n,x)=>n+x.cb.worth,0);
   const losingCalled=losing.filter(x=>isCalled(x.r)).length;
+  const losingNext=losingNextList(all,now);
+  const nextStart=curEnd+1, nextEnd=periodEndTime(nextPeriod(cur));
+  const losingNextAmt=losingNext.reduce((n,x)=>n+x.cb.worth,0);
+  const losingNextCalled=losingNext.filter(x=>isCalled(x.r)).length;
   /* "This month" means the current pay period (25th to 24th), the same month
      the Losing tile counts down to. These three ignore the month filter. */
   const pr=periodRange(cur), pStart=pr.start.getTime();
@@ -1452,6 +1466,8 @@ function renderTotals(rows){
   const tiles=[
     {key:'losing',go:'losing',k:'Losing this month',c:losing.length?'var(--warn)':'var(--good)',v:losingAmt,kind:'money',cls:losing.length?'lost':'',
       s:losing.length?`<b>${fmt(losing.length)}</b> ${plural(losing.length,'business','businesses')} must qualify by ${dshort(curEnd)} or the commission is gone for good · ${fmt(losingCalled)} contacted`:`No deadlines left before ${dshort(curEnd)}`},
+    {key:'losingNext',go:'losingNext',k:'Will be lost next month',c:losingNext.length?'var(--near-fg)':'var(--good)',v:losingNextAmt,kind:'money',
+      s:losingNext.length?`<b>${fmt(losingNext.length)}</b> ${plural(losingNext.length,'business','businesses')} must qualify between ${dshort(nextStart)} and ${dshort(nextEnd)} · ${fmt(losingNextCalled)} contacted`:`No deadlines ${dshort(nextStart)} – ${dshort(nextEnd)}`},
     {key:'lost',go:'lost',k:'Lost commission last month',c:ms.n?'var(--warn)':'var(--good)',v:ms.amt,kind:'money',
       s:ms.n?`<b>${fmt(ms.n)}</b> ${plural(ms.n,'business','businesses')} passed ${plural(ms.n,'its','their')} deadline between ${dshort(ms.since)} and ${dshort(ms.until)} without qualifying`:`Nothing lost ${dshort(ms.since)} – ${dshort(ms.until)}`},
     {key:'reg',go:'all',k:'Registrations this month',c:'var(--reg)',v:pReg,s:`Signed up ${span}`},
@@ -1531,13 +1547,14 @@ function renderDetail(rows){
   const bar=$('#cbBar');
   bar.classList.toggle('hidden',mode!=='cb');
   if(mode==='cb'){
-    if(!['losing','period','next','all'].includes(state.cbScope)) state.cbScope='period';
-    const cbLosing=losingList(cbAll,now);
-    const scoped=state.cbScope==='losing'?cbLosing:state.cbScope==='period'?cbNow:state.cbScope==='next'?cbNext:cbAll;
+    if(!['losing','losingNext','period','next','all'].includes(state.cbScope)) state.cbScope='period';
+    const cbLosing=losingList(cbAll,now), cbLosingNext=losingNextList(cbAll,now);
+    const scoped=state.cbScope==='losing'?cbLosing:state.cbScope==='losingNext'?cbLosingNext:state.cbScope==='period'?cbNow:state.cbScope==='next'?cbNext:cbAll;
     const done=scoped.filter(x=>isCalled(x.r)).length;
     const worth=scoped.reduce((n,x)=>n+x.cb.gain,0);
     bar.innerHTML=`<div class="seg" id="cbScope">
         <button data-k="losing" class="cbtab" aria-pressed="${state.cbScope==='losing'}">Losing this month<span class="ct">${cbLosing.length}</span></button>
+        <button data-k="losingNext" class="nexttab" aria-pressed="${state.cbScope==='losingNext'}">Will be lost next month<span class="ct">${cbLosingNext.length}</span></button>
         <button data-k="period" aria-pressed="${state.cbScope==='period'}">This pay period<span class="ct">${cbNow.length}</span></button>
         <button data-k="next" aria-pressed="${state.cbScope==='next'}">Next pay period<span class="ct">${cbNext.length}</span></button>
         <button data-k="all" aria-pressed="${state.cbScope==='all'}">All<span class="ct">${cbAll.length}</span></button>
@@ -1969,6 +1986,7 @@ $('#totals').addEventListener('click',e=>{
   const t=e.target.closest('[data-go]'); if(!t) return;
   if(t.dataset.go==='lost') return showLost();
   if(t.dataset.go==='losing') return showTab('cb','losing');
+  if(t.dataset.go==='losingNext') return showTab('cb','losingNext');
   showTab(t.dataset.go,t.dataset.go==='cb'?'period':null);
 });
 $('#nudge').addEventListener('click',e=>{
@@ -2320,9 +2338,10 @@ const Demo=(()=>{
   const spokenDay=t=>{ const d=new Date(t); return `${ordinal(d.getDate())} of ${d.toLocaleDateString('en-GB',{month:'long'})}`; };
   function facts(){
     const now=Date.now(), cur=periodOf(now), all=callbacks();
-    const losing=losingList(all,now), ms=missedSummary(now);
+    const losing=losingList(all,now), ms=missedSummary(now), losingNext=losingNextList(all,now);
     return {
-      all, losing, ms, cur,
+      all, losing, losingNext, ms, cur,
+      losingNextAmt:losingNext.reduce((n,x)=>n+x.cb.worth,0),
       losingAmt:losing.reduce((n,x)=>n+x.cb.worth,0),
       end:periodEndTime(cur),
       red:all.filter(x=>!x.cb.upgrade&&x.cb.days<=14).length,
@@ -2342,7 +2361,7 @@ const Demo=(()=>{
       act:async()=>{ await wait(600); await moveTo('.brand',{fx:.3}); }},
 
     {ch:'Your summary', scene:{top:true}, target:'#totals', pad:6,
-      say:()=>`This is your page. Across the top are five numbers, starting with the most urgent.`,
+      say:()=>`This is your page. Across the top are six numbers, starting with the most urgent.`,
       act:async()=>{ await moveTo(()=>tile('losing'),{fx:.3,fy:.4}); }},
 
     {ch:'Your summary', target:()=>tile('losing'), pad:2, radius:4,
@@ -2351,10 +2370,16 @@ const Demo=(()=>{
         :`Losing this month comes first. It shows the commission you’ll lose for good if businesses don’t qualify before the ${spokenDay(f.end)}. Right now nothing is at risk, which is exactly where we want to be.`,
       act:async()=>{ await moveTo(()=>tile('losing'),{fx:.25,fy:.45}); }},
 
+    {ch:'Your summary', target:()=>tile('losingNext'), pad:2, radius:4,
+      say:f=>f.losingNext.length
+        ?`Next to it is what will be lost next month: ${money(f.losingNextAmt)}, from ${nb(f.losingNext.length,'business','businesses')} whose deadline falls in the next pay period. Calling them now means they never reach the red list.`
+        :`Next to it is what will be lost next month. Right now nothing is due to run out in the next pay period.`,
+      act:async()=>{ await moveTo(()=>tile('losingNext'),{fx:.25,fy:.45}); }},
+
     {ch:'Your summary', target:()=>tile('lost'), pad:2, radius:4,
       say:f=>f.ms.n
-        ?`Next to it is what slipped away last pay period: ${money(f.ms.amt)}, from ${nb(f.ms.n,'business','businesses')} that reached their deadline without qualifying.`
-        :`Next to it is what slipped away last pay period. Here, nothing was lost.`,
+        ?`Then what slipped away last pay period: ${money(f.ms.amt)}, from ${nb(f.ms.n,'business','businesses')} that reached their deadline without qualifying.`
+        :`Then what slipped away last pay period. Here, nothing was lost.`,
       act:async()=>{ await moveTo(()=>tile('lost'),{fx:.25,fy:.45}); }},
 
     {ch:'What to do next', target:'#nudge > div:first-child', pad:10,
