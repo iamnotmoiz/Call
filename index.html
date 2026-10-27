@@ -570,8 +570,8 @@ body.retired{overflow:hidden}
 (function(){
   const KEY='rft_admin_ok', HASH='1bc3201a9f24a2fe48f634f90d406aaf6cbf5e36e292870ecba98d74b065ee1b';
   const box=document.getElementById('retire');
-  let ok=false; try{ ok=sessionStorage.getItem(KEY)==='1'; }catch(e){}
-  if(ok){ box.hidden=true; return; }
+  // Always start locked: the passcode is asked for again on every load.
+  try{ sessionStorage.removeItem(KEY); }catch(e){}
   document.body.classList.add('retired');
   const btn=document.getElementById('rtAdminBtn'), form=document.getElementById('rtForm'), input=document.getElementById('rtCode'), err=document.getElementById('rtErr');
   btn.addEventListener('click',()=>{ form.hidden=!form.hidden; btn.setAttribute('aria-expanded',String(!form.hidden)); if(!form.hidden) input.focus(); });
@@ -582,7 +582,6 @@ body.retired{overflow:hidden}
   form.addEventListener('submit',async e=>{
     e.preventDefault();
     if(await sha(input.value.trim())===HASH){
-      try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
       box.style.transition='opacity .35s'; box.style.opacity='0';
       setTimeout(()=>{ box.hidden=true; document.body.classList.remove('retired'); },350);
     }else{
