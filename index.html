@@ -498,9 +498,10 @@ body.retired{overflow:hidden}
 .rt-old{width:52px;height:52px;opacity:.45;filter:grayscale(1)}
 .rt-arrow{width:34px;height:2px;background:linear-gradient(90deg,var(--rule),var(--reg));position:relative;border-radius:2px}
 .rt-arrow::after{content:"";position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left:7px solid var(--reg);border-right:0}
-.rt-new{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#2563EB,#1D4ED8);display:grid;place-items:center;box-shadow:0 12px 24px -10px rgba(37,99,235,.7);animation:rtRing 2.4s ease-in-out 1s infinite}
-.rt-new svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@keyframes rtRing{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-10deg)}80%{transform:rotate(9deg)}85%{transform:rotate(-6deg)}90%{transform:rotate(4deg)}}
+.rt-new{width:68px;height:68px;border-radius:16px;box-shadow:0 14px 28px -12px rgba(15,23,42,.7);animation:rtLift 3s ease-in-out .8s infinite}
+@keyframes rtLift{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.rt-flame{transform-box:fill-box;transform-origin:50% 0;animation:rtFlame .5s ease-in-out infinite alternate}
+@keyframes rtFlame{from{transform:scaleY(.85)}to{transform:scaleY(1.1)}}
 .rt-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--miss-bg);padding:4px 10px;border-radius:999px;margin-bottom:12px}
 .rt-card h1{font-family:var(--serif);font-size:clamp(24px,5.5vw,30px);line-height:1.2;margin:0 0 12px;letter-spacing:-.01em;text-wrap:balance}
 .rt-card p{margin:0 auto 14px;max-width:42ch;color:var(--ink-2);font-size:15px;line-height:1.6}
@@ -521,14 +522,31 @@ body.retired{overflow:hidden}
 .rt-shake{animation:rtShake .35s}
 @keyframes rtShake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 @media(max-width:480px){ .rt-card{padding:28px 20px 22px;border-radius:16px} .rt-card p{font-size:14.5px} }
-@media (prefers-reduced-motion:reduce){ .rt-card,.rt-new{animation:none} }
+@media (prefers-reduced-motion:reduce){ .rt-card,.rt-new,.rt-flame{animation:none} }
 </style>
 <div id="retire" role="dialog" aria-modal="true" aria-labelledby="rtTitle">
   <div class="rt-card">
     <div class="rt-icons" aria-hidden="true">
       <svg class="rt-old" viewBox="0 0 28 28"><rect width="28" height="28" rx="8" fill="#20574A"/><g transform="translate(4.75 4.05) scale(.8)"><path fill="#fff" d="M3 6A2.8 2.8 0 0 1 8.6 6A9.4 9.4 0 0 0 9.06 8.9C10 11.8 6.81 9.41 8.42 11.99A11.3 11.3 0 0 0 12.01 15.58C14.59 17.19 12.2 14 15.1 14.94A9.4 9.4 0 0 0 18 15.4A2.8 2.8 0 0 1 18 21A15 15 0 0 1 3 6Z"/></g></svg>
       <span class="rt-arrow"></span>
-      <span class="rt-new"><svg viewBox="0 0 24 24"><path d="M14.05 2a9 9 0 0 1 8 7.94M14.05 6A5 5 0 0 1 18 10"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+      <svg class="rt-new" viewBox="0 0 512 512" aria-label="Territory Cluster">
+        <defs>
+          <linearGradient id="rtBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset=".5" stop-color="#0f172a"/><stop offset="1" stop-color="#020617"/></linearGradient>
+          <radialGradient id="rtGlow" cx="65%" cy="35%" r="60%"><stop offset="0" stop-color="#3b82f6" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+          <linearGradient id="rtBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".85" stop-color="#cbd5e1"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
+          <linearGradient id="rtRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f87171"/><stop offset="1" stop-color="#b91c1c"/></linearGradient>
+          <linearGradient id="rtFlame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9500"/><stop offset=".6" stop-color="#ff3b30"/><stop offset="1" stop-color="#ff2d55" stop-opacity="0"/></linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="115" fill="url(#rtBg)"/><rect width="512" height="512" rx="115" fill="url(#rtGlow)"/>
+        <circle cx="110" cy="130" r="4" fill="#93c5fd"/><circle cx="415" cy="110" r="3.5" fill="#fff"/><circle cx="100" cy="390" r="3" fill="#60a5fa"/>
+        <g transform="translate(256 256) rotate(45)">
+          <path class="rt-flame" d="M-26 84C-45 130-35 185 0 235 35 185 45 130 26 84Z" fill="url(#rtFlame)"/>
+          <path d="M-42 15-96 85C-98 94-92 98-82 96L-40 80Z" fill="url(#rtRed)"/><path d="M42 15 96 85C98 94 92 98 82 96L40 80Z" fill="url(#rtRed)"/>
+          <path d="M0-170C-60-75-55 35-42 82H42C55 35 60-75 0-170Z" fill="url(#rtBody)"/>
+          <path d="M0-170C-34-115-36-75-36-75-15-72 15-72 36-75 36-75 34-115 0-170Z" fill="url(#rtRed)"/>
+          <circle cy="-10" r="30" fill="#64748b"/><circle cy="-10" r="23" fill="#3b82f6"/>
+        </g>
+      </svg>
     </div>
     <span class="rt-tag">This page has moved</span>
     <h1 id="rtTitle">The Call Back List now lives in Territory Cluster</h1>
