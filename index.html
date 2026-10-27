@@ -482,89 +482,162 @@ body.demo-on .toast{display:none}
 </style>
 
 <!-- Retirement notice: this tool has moved into the Territory Cluster app's Call tab.
-     Admins can still get in with the passcode. -->
+     Clicking anywhere outside the admin section opens the app; admins can unlock the old list with the passcode. -->
 <style>
-#retire{position:fixed;inset:0;z-index:1000;overflow-y:auto;background:var(--ground);
-  background-image:radial-gradient(900px 500px at 15% -10%,color-mix(in srgb,var(--reg) 16%,transparent),transparent 60%),radial-gradient(700px 500px at 110% 110%,color-mix(in srgb,var(--ver) 14%,transparent),transparent 60%);
-  display:flex;align-items:flex-start;justify-content:center;cursor:pointer;
+#retire{position:fixed;inset:0;z-index:1000;overflow-y:auto;overflow-x:hidden;background:var(--ground);cursor:pointer;
+  display:flex;align-items:flex-start;justify-content:center;-webkit-tap-highlight-color:transparent;
   padding-block:calc(24px + env(safe-area-inset-top,0px)) calc(24px + env(safe-area-inset-bottom,0px));
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-#retire[hidden]{display:none}
+#retire[hidden],#retire [hidden]{display:none!important}
 body.retired{overflow:hidden}
-.rt-card{width:100%;max-width:520px;margin:auto 0;background:var(--surface);border:1px solid var(--rule);border-radius:20px;box-shadow:0 30px 60px -30px rgba(0,0,0,.35);
-  padding:36px 32px 28px;text-align:center;animation:rtIn .6s var(--ease) both}
-@keyframes rtIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
-.rt-icons{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:22px}
-.rt-old{width:52px;height:52px;opacity:.45;filter:grayscale(1)}
-.rt-arrow{width:34px;height:2px;background:linear-gradient(90deg,var(--rule),var(--reg));position:relative;border-radius:2px}
-.rt-arrow::after{content:"";position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left:7px solid var(--reg);border-right:0}
-.rt-new{width:68px;height:68px;border-radius:16px;box-shadow:0 14px 28px -12px rgba(15,23,42,.7);animation:rtLift 3s ease-in-out .8s infinite}
-@keyframes rtLift{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-.rt-flame{transform-box:fill-box;transform-origin:50% 0;animation:rtFlame .5s ease-in-out infinite alternate}
-@keyframes rtFlame{from{transform:scaleY(.85)}to{transform:scaleY(1.1)}}
-.rt-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--miss-bg);padding:4px 10px;border-radius:999px;margin-bottom:12px}
-.rt-card h1{font-family:var(--serif);font-size:clamp(24px,5.5vw,30px);line-height:1.2;margin:0 0 12px;letter-spacing:-.01em;text-wrap:balance}
-.rt-card p{margin:0 auto 14px;max-width:42ch;color:var(--ink-2);font-size:15px;line-height:1.6}
-.rt-steps{list-style:none;margin:20px 0 24px;padding:0;text-align:left;display:flex;flex-direction:column;gap:10px}
-.rt-steps li{display:flex;gap:12px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--rule-2);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.45}
-.rt-steps b{flex:none;width:24px;height:24px;border-radius:50%;background:var(--reg);color:var(--on-accent);display:grid;place-items:center;font-size:12px}
-.rt-admin{margin-top:6px;padding-top:18px;border-top:1px solid var(--rule-2)}
-.rt-admin-btn{border:none;background:none;color:var(--ink-3);font-size:13px;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px}
+/* drifting glow + rising sparks behind the card */
+.rt-sky{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.rt-sky::before,.rt-sky::after{content:"";position:absolute;width:70vmax;height:70vmax;border-radius:50%;filter:blur(40px);opacity:.55}
+.rt-sky::before{left:-25vmax;top:-30vmax;background:radial-gradient(circle,color-mix(in srgb,#2563EB 30%,transparent),transparent 65%);animation:rtDrift 14s ease-in-out infinite alternate}
+.rt-sky::after{right:-30vmax;bottom:-35vmax;background:radial-gradient(circle,color-mix(in srgb,var(--reg) 32%,transparent),transparent 65%);animation:rtDrift 18s ease-in-out infinite alternate-reverse}
+@keyframes rtDrift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+.rt-spark{position:absolute;bottom:-12px;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,#60A5FA 70%,transparent);
+  box-shadow:0 0 10px 2px color-mix(in srgb,#60A5FA 45%,transparent);animation:rtRise linear infinite;opacity:0}
+@keyframes rtRise{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:.9}80%{opacity:.5}100%{transform:translateY(-110vh) translateX(var(--dx,20px)) scale(1);opacity:0}}
+
+.rt-card{position:relative;width:100%;max-width:520px;margin:auto 0;background:var(--surface);border:1px solid var(--rule);border-radius:22px;
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.45);padding:34px 32px 26px;text-align:center;
+  animation:rtIn .7s cubic-bezier(.2,.9,.25,1.15) backwards;transform-style:preserve-3d;transition:transform .25s ease-out,box-shadow .25s ease-out}
+@keyframes rtIn{from{opacity:0;transform:translateY(40px) scale(.94)}to{opacity:1;transform:none}}
+.rt-card.out{animation:rtOut .45s ease-in forwards}
+@keyframes rtOut{to{opacity:0;transform:translateY(-30px) scale(.94)}}
+
+/* old icon -> travelling dots -> rocket */
+.rt-icons{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:20px;height:96px}
+.rt-old{width:50px;height:50px;filter:grayscale(1);opacity:.45;animation:rtFadeOld 1.2s ease .3s backwards}
+@keyframes rtFadeOld{from{filter:none;opacity:1;transform:scale(1.08)}to{filter:grayscale(1);opacity:.45;transform:none}}
+.rt-path{width:46px;height:4px;border-radius:2px;background:repeating-linear-gradient(90deg,var(--reg) 0 6px,transparent 6px 12px);background-size:24px 4px;
+  animation:rtDash .7s linear infinite,rtGrow .6s ease .5s backwards;transform-origin:left}
+@keyframes rtDash{to{background-position:24px 0}}
+@keyframes rtGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.rt-rocketbox{position:relative;width:84px;height:84px}
+.rt-rocket{position:absolute;inset:0;animation:rtArrive 1s cubic-bezier(.2,.9,.2,1.1) .55s backwards}
+@keyframes rtArrive{from{opacity:0;transform:translate(-70px,70px) rotate(-25deg) scale(.4)}to{opacity:1;transform:none}}
+.rt-rocket .float{width:100%;height:100%;animation:rtFloat 2.6s ease-in-out 1.6s infinite}
+@keyframes rtFloat{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(2px,-7px) rotate(-3deg)}50%{transform:translate(0,-11px) rotate(0)}75%{transform:translate(-2px,-6px) rotate(3deg)}}
+.rt-rocket svg{width:100%;height:100%;display:block;border-radius:20px;box-shadow:0 16px 30px -12px rgba(15,23,42,.75)}
+.rt-rocket.launch{animation:rtLaunch 1.1s cubic-bezier(.5,0,.7,.2) forwards}
+@keyframes rtLaunch{0%{transform:none}15%{transform:translate(-4px,6px) rotate(-2deg)}100%{transform:translate(160px,-260px) rotate(8deg) scale(.5);opacity:0}}
+.rt-rocket.back{animation:rtArrive .8s cubic-bezier(.2,.9,.2,1.1) backwards}
+.rt-puff{position:absolute;left:10px;bottom:6px;width:14px;height:14px;border-radius:50%;background:color-mix(in srgb,var(--ink-3) 40%,transparent);opacity:0;animation:rtPuff 1.6s ease-out infinite;pointer-events:none}
+.rt-puff:nth-child(2){animation-delay:.5s;left:4px} .rt-puff:nth-child(3){animation-delay:1s;left:16px}
+@keyframes rtPuff{0%{transform:translate(0,0) scale(.4);opacity:.7}100%{transform:translate(-26px,22px) scale(2.2);opacity:0}}
+
+.rt-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);background:var(--miss-bg);padding:5px 11px;border-radius:999px;margin-bottom:12px;animation:rtUp .5s ease .9s backwards}
+.rt-tag i{width:6px;height:6px;border-radius:50%;background:var(--warn);animation:rtBlink 1.4s ease-in-out infinite}
+@keyframes rtBlink{50%{opacity:.25}}
+.rt-card h1{font-family:var(--serif);font-size:clamp(23px,5.5vw,30px);line-height:1.2;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance;animation:rtUp .5s ease 1s backwards}
+.rt-card h1 em{font-style:normal;background:linear-gradient(90deg,#2563EB,var(--reg),#2563EB);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:rtShine 4s linear infinite}
+@keyframes rtShine{to{background-position:200% 0}}
+.rt-card p.rt-lead{margin:0 auto;max-width:42ch;color:var(--ink-2);font-size:15px;line-height:1.6;animation:rtUp .5s ease 1.1s backwards}
+@keyframes rtUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.rt-steps{list-style:none;margin:20px 0 20px;padding:0;text-align:left;display:flex;flex-direction:column;gap:10px}
+.rt-steps li{display:flex;gap:12px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--rule-2);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.45;
+  animation:rtSlide .5s cubic-bezier(.2,.9,.3,1.1) backwards;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,background .2s ease}
+.rt-steps li:nth-child(1){animation-delay:1.2s} .rt-steps li:nth-child(2){animation-delay:1.35s} .rt-steps li:nth-child(3){animation-delay:1.5s}
+@keyframes rtSlide{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+.rt-steps li:hover,.rt-steps li.lit{transform:translateX(4px);border-color:color-mix(in srgb,#2563EB 45%,var(--rule));background:color-mix(in srgb,#2563EB 7%,var(--surface-2));box-shadow:0 8px 18px -12px rgba(37,99,235,.6)}
+.rt-steps b{flex:none;width:26px;height:26px;border-radius:50%;background:var(--reg);color:var(--on-accent);display:grid;place-items:center;font-size:12px;transition:transform .25s cubic-bezier(.3,1.6,.5,1),background .2s}
+.rt-steps li:hover b,.rt-steps li.lit b{transform:scale(1.15) rotate(-8deg);background:#2563EB}
+
+.rt-go{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:9px;height:50px;padding:0 26px;border-radius:14px;
+  background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;font-weight:650;font-size:15.5px;text-decoration:none;margin:0 0 16px;
+  box-shadow:0 14px 26px -12px rgba(37,99,235,.9);transition:transform .15s ease,box-shadow .2s ease;animation:rtUp .5s ease 1.65s backwards,rtPulse 2.4s ease-in-out 2.4s infinite}
+.rt-go::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:rtSweep 3s ease-in-out 2.2s infinite}
+@keyframes rtSweep{0%{left:-60%}35%,100%{left:130%}}
+@keyframes rtPulse{0%,100%{box-shadow:0 14px 26px -12px rgba(37,99,235,.9),0 0 0 0 rgba(59,130,246,.45)}50%{box-shadow:0 14px 26px -12px rgba(37,99,235,.9),0 0 0 10px rgba(59,130,246,0)}}
+.rt-go:hover{transform:translateY(-2px)}
+.rt-go:active{transform:scale(.97)}
+.rt-go svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s ease}
+.rt-go:hover svg{transform:translate(3px,-3px)}
+.rt-hint{display:block;font-size:12px;color:var(--ink-3);margin:-6px 0 14px;animation:rtUp .5s ease 1.8s backwards}
+.rt-ripple{position:fixed;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid #3B82F6;pointer-events:none;z-index:1001;animation:rtRipple .6s ease-out forwards}
+@keyframes rtRipple{to{transform:scale(9);opacity:0}}
+
+.rt-admin{margin-top:4px;padding-top:16px;border-top:1px solid var(--rule-2);cursor:default;animation:rtUp .5s ease 1.9s backwards}
+.rt-admin-btn{border:none;background:none;color:var(--ink-3);font-size:13px;display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;transition:color .2s,background .2s}
 .rt-admin-btn:hover{color:var(--ink);background:var(--hover)}
-.rt-admin-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rt-form{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px}
+.rt-lock{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.rt-lock .shackle{transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.rt-admin-btn:hover .rt-lock .shackle{transform:translateY(-1.5px)}
+.rt-lock.open .shackle{transform:translate(5px,-3px) rotate(18deg);transform-origin:16px 11px}
+.rt-form{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;animation:rtUp .3s ease backwards}
 .rt-form label{font-size:12.5px;color:var(--ink-2)}
 .rt-row{display:flex;gap:8px;width:100%;max-width:300px}
-.rt-row input{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:20px;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums}
-.rt-row input:focus{outline:none;border-color:var(--reg);box-shadow:0 0 0 3px color-mix(in srgb,var(--reg) 20%,transparent)}
-.rt-row button{height:44px;padding:0 18px;border-radius:10px;border:none;background:var(--reg);color:var(--on-accent);font-weight:600;font-size:14px}
+.rt-row input{flex:1;min-width:0;height:46px;border-radius:12px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:20px;letter-spacing:.45em;text-align:center;font-variant-numeric:tabular-nums;transition:border-color .2s,box-shadow .2s}
+.rt-row input:focus{outline:none;border-color:var(--reg);box-shadow:0 0 0 4px color-mix(in srgb,var(--reg) 20%,transparent)}
+.rt-row input.good{border-color:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 25%,transparent)}
+.rt-row button{height:46px;padding:0 18px;border-radius:12px;border:none;background:var(--reg);color:var(--on-accent);font-weight:600;font-size:14px;transition:transform .15s}
+.rt-row button:active{transform:scale(.96)}
 .rt-err{font-size:12.5px;color:var(--warn);min-height:1.2em;margin:0}
-.rt-shake{animation:rtShake .35s}
-@keyframes rtShake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
-@media(max-width:480px){ .rt-card{padding:24px 18px 20px;border-radius:16px} .rt-card p{font-size:14.5px} }
-@media(max-height:760px){ .rt-card{padding-top:22px;padding-bottom:18px} .rt-icons{margin-bottom:14px} .rt-steps{margin:14px 0 16px;gap:8px} .rt-steps li{padding:10px 12px} .rt-card h1{margin-bottom:8px} }
-.rt-admin{cursor:default}
-.rt-go{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 22px;border-radius:12px;background:#2563EB;color:#fff;font-weight:600;font-size:15px;text-decoration:none;margin:2px 0 18px;box-shadow:0 10px 22px -10px rgba(37,99,235,.8);transition:transform .15s,background .15s}
-.rt-go:hover{background:#1D4ED8;transform:translateY(-1px)}
-.rt-go svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@media(max-width:480px){ .rt-go{width:100%} }
-@media (prefers-reduced-motion:reduce){ .rt-card,.rt-new,.rt-flame{animation:none} }
+.rt-shake{animation:rtShake .4s}
+@keyframes rtShake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+@media(max-width:480px){ .rt-card{padding:24px 18px 20px;border-radius:18px} .rt-card p.rt-lead{font-size:14.5px} .rt-go{width:100%} }
+@media(max-height:760px){ .rt-card{padding-top:20px;padding-bottom:18px} .rt-icons{margin-bottom:12px;height:84px} .rt-rocketbox{width:74px;height:74px} .rt-steps{margin:14px 0;gap:8px} .rt-steps li{padding:10px 12px} }
+/* With "Reduce Motion" on, the page keeps a calm version: no movement, just fades. */
+@media (prefers-reduced-motion:reduce){
+  .rt-sky::before,.rt-sky::after,.rt-spark,.rt-puff,.rt-rocket .float,.rt-path,.rt-go::after{animation:none!important}
+}
 </style>
 <div id="retire" role="dialog" aria-modal="true" aria-labelledby="rtTitle">
-  <div class="rt-card">
+  <div class="rt-sky" id="rtSky" aria-hidden="true"></div>
+  <div class="rt-card" id="rtCard">
     <div class="rt-icons" aria-hidden="true">
       <svg class="rt-old" viewBox="0 0 28 28"><rect width="28" height="28" rx="8" fill="#20574A"/><g transform="translate(4.75 4.05) scale(.8)"><path fill="#fff" d="M3 6A2.8 2.8 0 0 1 8.6 6A9.4 9.4 0 0 0 9.06 8.9C10 11.8 6.81 9.41 8.42 11.99A11.3 11.3 0 0 0 12.01 15.58C14.59 17.19 12.2 14 15.1 14.94A9.4 9.4 0 0 0 18 15.4A2.8 2.8 0 0 1 18 21A15 15 0 0 1 3 6Z"/></g></svg>
-      <span class="rt-arrow"></span>
-      <svg class="rt-new" viewBox="0 0 512 512" aria-label="Territory Cluster">
-        <defs>
-          <linearGradient id="rtBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset=".5" stop-color="#0f172a"/><stop offset="1" stop-color="#020617"/></linearGradient>
-          <radialGradient id="rtGlow" cx="65%" cy="35%" r="60%"><stop offset="0" stop-color="#3b82f6" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
-          <linearGradient id="rtBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".85" stop-color="#cbd5e1"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
-          <linearGradient id="rtRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f87171"/><stop offset="1" stop-color="#b91c1c"/></linearGradient>
-          <linearGradient id="rtFlame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9500"/><stop offset=".6" stop-color="#ff3b30"/><stop offset="1" stop-color="#ff2d55" stop-opacity="0"/></linearGradient>
-        </defs>
-        <rect width="512" height="512" rx="115" fill="url(#rtBg)"/><rect width="512" height="512" rx="115" fill="url(#rtGlow)"/>
-        <circle cx="110" cy="130" r="4" fill="#93c5fd"/><circle cx="415" cy="110" r="3.5" fill="#fff"/><circle cx="100" cy="390" r="3" fill="#60a5fa"/>
-        <g transform="translate(256 256) rotate(45)">
-          <path class="rt-flame" d="M-26 84C-45 130-35 185 0 235 35 185 45 130 26 84Z" fill="url(#rtFlame)"/>
-          <path d="M-42 15-96 85C-98 94-92 98-82 96L-40 80Z" fill="url(#rtRed)"/><path d="M42 15 96 85C98 94 92 98 82 96L40 80Z" fill="url(#rtRed)"/>
-          <path d="M0-170C-60-75-55 35-42 82H42C55 35 60-75 0-170Z" fill="url(#rtBody)"/>
-          <path d="M0-170C-34-115-36-75-36-75-15-72 15-72 36-75 36-75 34-115 0-170Z" fill="url(#rtRed)"/>
-          <circle cy="-10" r="30" fill="#64748b"/><circle cy="-10" r="23" fill="#3b82f6"/>
-        </g>
-      </svg>
+      <span class="rt-path"></span>
+      <div class="rt-rocketbox">
+        <span class="rt-puff"></span><span class="rt-puff"></span><span class="rt-puff"></span>
+        <div class="rt-rocket" id="rtRocket"><div class="float">
+          <svg viewBox="0 0 512 512" aria-label="Territory Cluster">
+            <defs>
+              <linearGradient id="rtBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset=".5" stop-color="#0f172a"/><stop offset="1" stop-color="#020617"/></linearGradient>
+              <radialGradient id="rtGlow" cx="65%" cy="35%" r="60%"><stop offset="0" stop-color="#3b82f6" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+              <linearGradient id="rtBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".85" stop-color="#cbd5e1"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
+              <linearGradient id="rtRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f87171"/><stop offset="1" stop-color="#b91c1c"/></linearGradient>
+              <linearGradient id="rtFlame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9500"/><stop offset=".6" stop-color="#ff3b30"/><stop offset="1" stop-color="#ff2d55" stop-opacity="0"/></linearGradient>
+              <linearGradient id="rtFlameIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".4" stop-color="#ffea79"/><stop offset="1" stop-color="#ff9500" stop-opacity="0"/></linearGradient>
+            </defs>
+            <rect width="512" height="512" rx="115" fill="url(#rtBg)"/><rect width="512" height="512" rx="115" fill="url(#rtGlow)"/>
+            <!-- twinkling stars (SVG animation: works on every phone browser) -->
+            <circle class="rt-smil" cx="110" cy="130" r="5" fill="#93c5fd"><animate attributeName="opacity" values="1;.2;1" dur="1.8s" repeatCount="indefinite"/></circle>
+            <circle class="rt-smil" cx="415" cy="110" r="4.5" fill="#fff"><animate attributeName="opacity" values=".3;1;.3" dur="1.3s" repeatCount="indefinite"/></circle>
+            <circle class="rt-smil" cx="430" cy="235" r="3.5" fill="#93c5fd"><animate attributeName="opacity" values="1;.3;1" dur="2.2s" repeatCount="indefinite"/></circle>
+            <circle class="rt-smil" cx="100" cy="390" r="4" fill="#60a5fa"><animate attributeName="opacity" values=".4;1;.4" dur="1.6s" repeatCount="indefinite"/></circle>
+            <g transform="translate(256 256) rotate(45)">
+              <g transform="translate(0 84)"><g>
+                <animateTransform class="rt-smil" attributeName="transform" type="scale" values="1 .8;1.08 1.15;.95 .9;1.05 1.1;1 .8" dur=".45s" repeatCount="indefinite"/>
+                <path d="M-26 0C-45 46-35 101 0 151 35 101 45 46 26 0Z" fill="url(#rtFlame)"/>
+                <path d="M-15 0C-24 36-18 66 0 101 18 66 24 36 15 0Z" fill="url(#rtFlameIn)"/>
+              </g></g>
+              <path d="M-42 15-96 85C-98 94-92 98-82 96L-40 80Z" fill="url(#rtRed)"/><path d="M42 15 96 85C98 94 92 98 82 96L40 80Z" fill="url(#rtRed)"/>
+              <path d="M-28 78-20 90H20L28 78Z" fill="#334155"/>
+              <path d="M0-170C-60-75-55 35-42 82H42C55 35 60-75 0-170Z" fill="url(#rtBody)"/>
+              <path d="M0-170C-34-115-36-75-36-75-15-72 15-72 36-75 36-75 34-115 0-170Z" fill="url(#rtRed)"/>
+              <circle cy="-10" r="30" fill="#64748b"/><circle cy="-10" r="23" fill="#3b82f6"/><ellipse cx="-7" cy="-17" rx="10" ry="5" fill="#fff" opacity=".6" transform="rotate(-30 -7 -17)"/>
+            </g>
+          </svg>
+        </div></div>
+      </div>
     </div>
-    <span class="rt-tag">This page has moved</span>
-    <h1 id="rtTitle">The Call Back List now lives in Territory Cluster</h1>
-    <p>This page is no longer updated. Your call backs, deadlines and commission at risk are now in the <b>Call</b> tab of the Territory Cluster app.</p>
-    <ol class="rt-steps">
+    <span class="rt-tag"><i></i>This page has moved</span>
+    <h1 id="rtTitle">The Call Back List now lives in <em>Territory Cluster</em></h1>
+    <p class="rt-lead">This page is no longer updated. Your call backs, deadlines and commission at risk are now in the <b>Call</b> tab of the Territory Cluster app.</p>
+    <ol class="rt-steps" id="rtSteps">
       <li><b>1</b><span>Open the <strong>Territory Cluster</strong> app and sign in.</span></li>
       <li><b>2</b><span>Tap <strong>Call</strong> in the top bar, next to Map and Day Plan.</span></li>
       <li><b>3</b><span>Upload your AB report there. Your agent code is already set up by your admin.</span></li>
     </ol>
     <a class="rt-go" href="https://sigmap.ai.studio/" target="_blank" rel="noopener">Open Territory Cluster<svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+    <span class="rt-hint">Tap anywhere to open the app</span>
     <div class="rt-admin">
-      <button class="rt-admin-btn" id="rtAdminBtn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Admin access</button>
+      <button class="rt-admin-btn" id="rtAdminBtn" type="button" aria-expanded="false"><svg class="rt-lock" id="rtLock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path class="shackle" d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Admin access</button>
       <form class="rt-form" id="rtForm" hidden>
         <label for="rtCode">Enter the admin passcode to open the old list</label>
         <div class="rt-row"><input id="rtCode" type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-describedby="rtErr"><button type="submit">Open</button></div>
@@ -575,18 +648,46 @@ body.retired{overflow:hidden}
 </div>
 <script>
 (function(){
-  const KEY='rft_admin_ok', HASH='1bc3201a9f24a2fe48f634f90d406aaf6cbf5e36e292870ecba98d74b065ee1b';
-  const box=document.getElementById('retire');
+  const HASH='1bc3201a9f24a2fe48f634f90d406aaf6cbf5e36e292870ecba98d74b065ee1b', APP='https://sigmap.ai.studio/';
+  const box=document.getElementById('retire'), card=document.getElementById('rtCard'), rocket=document.getElementById('rtRocket');
+  const calm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Always start locked: the passcode is asked for again on every load.
-  try{ sessionStorage.removeItem(KEY); }catch(e){}
+  try{ sessionStorage.removeItem('rft_admin_ok'); }catch(e){}
   document.body.classList.add('retired');
-  const btn=document.getElementById('rtAdminBtn'), form=document.getElementById('rtForm'), input=document.getElementById('rtCode'), err=document.getElementById('rtErr');
-  // Anywhere outside the admin section opens the Territory Cluster app in a new tab.
-  const APP='https://sigmap.ai.studio/';
+
+  if(calm){ document.querySelectorAll('#retire .rt-smil').forEach(n=>n.remove()); }
+  else{
+    // rising sparks in the background
+    const sky=document.getElementById('rtSky');
+    for(let i=0;i<22;i++){ const s=document.createElement('i'); s.className='rt-spark';
+      const size=3+Math.random()*5; s.style.cssText=`left:${Math.random()*100}%;width:${size}px;height:${size}px;animation-duration:${7+Math.random()*9}s;animation-delay:${-Math.random()*14}s;--dx:${(Math.random()*60-30).toFixed(0)}px`;
+      sky.appendChild(s); }
+    // the steps light up one after another
+    const steps=[...document.querySelectorAll('#rtSteps li')]; let k=0;
+    setTimeout(()=>{ setInterval(()=>{ steps.forEach((li,j)=>li.classList.toggle('lit',j===k%steps.length)); k++; },1600); },2200);
+    // gentle 3D tilt that follows the pointer (mouse) or the phone's tilt
+    const tilt=(x,y)=>{ card.style.transform=`perspective(900px) rotateX(${(-y*5).toFixed(2)}deg) rotateY(${(x*6).toFixed(2)}deg)`; };
+    box.addEventListener('pointermove',e=>{ if(e.pointerType!=='mouse') return; const r=card.getBoundingClientRect();
+      tilt(Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/r.width*2)),Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/r.height*2))); });
+    box.addEventListener('pointerleave',()=>{ card.style.transform=''; });
+    window.addEventListener('deviceorientation',e=>{ if(e.gamma==null||box.hidden) return; tilt(Math.max(-1,Math.min(1,e.gamma/30)),Math.max(-1,Math.min(1,(e.beta-45)/30))); });
+  }
+
+  // Anywhere outside the admin section opens the Territory Cluster app in a new tab, and the rocket takes off.
+  function launch(x,y){
+    if(calm) return;
+    const r=document.createElement('span'); r.className='rt-ripple'; r.style.left=x+'px'; r.style.top=y+'px'; document.body.appendChild(r); setTimeout(()=>r.remove(),650);
+    rocket.classList.remove('back'); rocket.classList.add('launch');
+    setTimeout(()=>{ rocket.classList.remove('launch'); rocket.classList.add('back'); },1300);
+  }
   box.addEventListener('click',e=>{
-    if(e.target.closest('.rt-admin')||e.target.closest('a')) return;
+    if(e.target.closest('.rt-admin')) return;
+    launch(e.clientX,e.clientY);
+    if(e.target.closest('a')) return;               // the button opens the link itself
     const w=window.open(APP,'_blank'); if(w){ try{ w.opener=null; }catch(err){} } else location.href=APP;
   });
+
+  const btn=document.getElementById('rtAdminBtn'), form=document.getElementById('rtForm'), input=document.getElementById('rtCode'), err=document.getElementById('rtErr'), lock=document.getElementById('rtLock');
   btn.addEventListener('click',()=>{ form.hidden=!form.hidden; btn.setAttribute('aria-expanded',String(!form.hidden)); if(!form.hidden) input.focus(); });
   async function sha(t){
     if(window.crypto&&crypto.subtle){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
@@ -595,8 +696,10 @@ body.retired{overflow:hidden}
   form.addEventListener('submit',async e=>{
     e.preventDefault();
     if(await sha(input.value.trim())===HASH){
-      box.style.transition='opacity .35s'; box.style.opacity='0';
-      setTimeout(()=>{ box.hidden=true; document.body.classList.remove('retired'); },350);
+      err.textContent=''; input.classList.add('good'); lock.classList.add('open');
+      setTimeout(()=>card.classList.add('out'),calm?0:350);
+      box.style.transition='opacity .45s'; setTimeout(()=>{ box.style.opacity='0'; },calm?0:500);
+      setTimeout(()=>{ box.hidden=true; document.body.classList.remove('retired'); },calm?450:950);
     }else{
       err.textContent='That passcode isn’t right.'; input.value='';
       form.classList.remove('rt-shake'); void form.offsetWidth; form.classList.add('rt-shake'); input.focus();
